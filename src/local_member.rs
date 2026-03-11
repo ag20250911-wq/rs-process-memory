@@ -78,10 +78,7 @@ impl<T: Sized + Copy> Memory<T> for LocalMember<T> {
         for i in 0..self.offsets.len() - 1 {
             offset = offset.wrapping_add(self.offsets[i]);
             if offset == 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Would be a null dereference!",
-                ));
+                return Err(std::io::Error::other("Would be a null dereference!"));
             }
             // We can't guarantee alignment, so we must use `read_unaligned()`
             // to ensure that its ok to read from, as `read()` requires that

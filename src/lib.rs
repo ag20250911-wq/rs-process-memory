@@ -7,6 +7,7 @@
 #![deny(bad_style)]
 #![deny(unused)]
 #![deny(clippy::pedantic)]
+#![allow(unexpected_cfgs)]
 
 mod architecture;
 mod data_member;

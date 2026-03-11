@@ -22,15 +22,12 @@ pub type Pid = u32;
 pub type ProcessHandle = (windows::HANDLE, Architecture);
 
 impl ProcessHandleExt for ProcessHandle {
-    #[must_use]
     fn check_handle(&self) -> bool {
         self.0.is_invalid()
     }
-    #[must_use]
     fn null_type() -> ProcessHandle {
         (windows::HANDLE::default(), Architecture::from_native())
     }
-    #[must_use]
     fn set_arch(self, arch: Architecture) -> Self {
         (self.0, arch)
     }

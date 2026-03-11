@@ -9,15 +9,12 @@ pub type Pid = pid_t;
 pub type ProcessHandle = (Pid, Architecture);
 
 impl ProcessHandleExt for ProcessHandle {
-    #[must_use]
     fn check_handle(&self) -> bool {
         self.0 != 0
     }
-    #[must_use]
     fn null_type() -> Self {
         (0, Architecture::from_native())
     }
-    #[must_use]
     fn set_arch(self, arch: Architecture) -> Self {
         (self.0, arch)
     }
@@ -53,7 +50,9 @@ impl CopyAddress for ProcessHandle {
             iov_base: addr as *mut c_void,
             iov_len: buf.len(),
         };
-        let result = unsafe { process_vm_readv(self.0, &local_iov, 1, &remote_iov, 1, 0) };
+        let result = unsafe {
+            process_vm_readv(self.0, &raw const local_iov, 1, &raw const remote_iov, 1, 0)
+        };
         if result == -1 {
             Err(std::io::Error::last_os_error())
         } else {
@@ -72,7 +71,9 @@ impl PutAddress for ProcessHandle {
             iov_base: addr as *mut c_void,
             iov_len: buf.len(),
         };
-        let result = unsafe { process_vm_writev(self.0, &local_iov, 1, &remote_iov, 1, 0) };
+        let result = unsafe {
+            process_vm_writev(self.0, &raw const local_iov, 1, &raw const remote_iov, 1, 0)
+        };
         if result == -1 {
             Err(std::io::Error::last_os_error())
         } else {

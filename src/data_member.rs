@@ -96,7 +96,10 @@ impl<T: Sized + Copy> Memory<T> for DataMember<T> {
         use std::slice;
         let offset = self.process.get_offset(&self.offsets)?;
         let buffer: &[u8] = unsafe {
-            slice::from_raw_parts((value as *const T).cast::<u8>(), std::mem::size_of::<T>())
+            slice::from_raw_parts(
+                std::ptr::from_ref(value).cast::<u8>(),
+                std::mem::size_of::<T>(),
+            )
         };
         self.process.put_address(offset, buffer)
     }

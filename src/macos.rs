@@ -11,15 +11,12 @@ pub type Pid = pid_t;
 pub type ProcessHandle = (mach_port_name_t, Architecture);
 
 impl ProcessHandleExt for ProcessHandle {
-    #[must_use]
     fn check_handle(&self) -> bool {
         self.0 != 0
     }
-    #[must_use]
     fn null_type() -> ProcessHandle {
         (0, Architecture::from_native())
     }
-    #[must_use]
     fn set_arch(self, arch: Architecture) -> Self {
         (self.0, arch)
     }
@@ -31,7 +28,7 @@ fn task_for_pid(pid: Pid) -> std::io::Result<mach_port_name_t> {
 
     unsafe {
         let result =
-            mach::traps::task_for_pid(mach::traps::mach_task_self(), pid as c_int, &mut task);
+            mach::traps::task_for_pid(mach::traps::mach_task_self(), pid as c_int, &raw mut task);
         if result != KERN_SUCCESS {
             return Err(std::io::Error::last_os_error());
         }
@@ -88,7 +85,7 @@ impl CopyAddress for ProcessHandle {
                 addr as _,
                 buf.len() as _,
                 buf.as_mut_ptr() as _,
-                &mut read_len,
+                &raw mut read_len,
             )
         };
 
