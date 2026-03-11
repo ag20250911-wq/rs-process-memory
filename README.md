@@ -15,6 +15,21 @@ Some examples of use cases for this tool are:
  - Game "trainers"
  - Rust clones of Cheat Engine
 
+## Installation
+
+To use this customized fork of `process-memory` in your project, you can add it directly from the GitHub repository.
+
+Add the following to your `Cargo.toml` under `[dependencies]`:
+
+```toml
+[dependencies]
+process-memory = { git = "https://github.com/ag20250911-wq/rs-process-memory" }
+```
+Alternatively, you can add it using the cargo add command in your terminal:
+```bash
+cargo add process-memory --git https://github.com/ag20250911-wq/rs-process-memory
+```
+
 ## Examples
 ```rust
 // We need the following from process-memory
