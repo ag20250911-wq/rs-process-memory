@@ -23,7 +23,7 @@ pub type ProcessHandle = (windows::HANDLE, Architecture);
 
 impl ProcessHandleExt for ProcessHandle {
     fn check_handle(&self) -> bool {
-        self.0.is_invalid()
+        !self.0.is_invalid()
     }
     fn null_type() -> ProcessHandle {
         (windows::HANDLE::default(), Architecture::from_native())
