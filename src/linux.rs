@@ -1,6 +1,9 @@
 use libc::{c_void, iovec, pid_t, process_vm_readv, process_vm_writev};
 use std::process::Child;
 
+use std::fs::File;
+use std::io::Read;
+
 use super::{Architecture, CopyAddress, ProcessHandleExt, PutAddress, TryIntoProcessHandle};
 
 /// On Linux a `Pid` is just a `libc::pid_t`.
@@ -21,17 +24,44 @@ impl ProcessHandleExt for ProcessHandle {
     fn close(&self) {}
 }
 
+/// `対象のHANDLEからArchitectureを取得するヘルパー関数`
+fn get_arch_from_handle(pid: Pid) -> Architecture {
+    let path = format!("/proc/{pid}/exe");
+
+    // 対象プロセスの実行ファイルを読み取り専用で開く
+    if let Ok(mut file) = File::open(&path) {
+        let mut buffer = [0u8; 5];
+        // 先頭5バイトだけ読み取る
+        if file.read_exact(&mut buffer).is_ok() {
+            // ELFヘッダのマジックナンバー (0x7F, 'E', 'L', 'F') を確認
+            if buffer[0..4] == [0x7F, 0x45, 0x4c, 0x46] {
+                return match buffer[4] {
+                    1 => Architecture::Arch32Bit,     // ELFCLASS32
+                    2 => Architecture::Arch64Bit,     // ELFCLASS64
+                    _ => Architecture::from_native(), // 未知の場合はフォールバック
+                };
+            }
+        }
+    }
+
+    // 権限不足などで読めなかった場合は自身のアーキテクチャにフォールバック
+    Architecture::from_native()
+}
+
 /// A `Child` always has a pid, which is all we need on Linux.
 impl TryIntoProcessHandle for Child {
     fn try_into_process_handle(&self) -> std::io::Result<ProcessHandle> {
         #[allow(clippy::cast_possible_wrap)]
-        Ok((self.id() as Pid, Architecture::from_native()))
+        let pid = self.id() as Pid;
+        let arch = get_arch_from_handle(pid);
+        Ok((pid, arch))
     }
 }
 
 impl TryIntoProcessHandle for Pid {
     fn try_into_process_handle(&self) -> std::io::Result<ProcessHandle> {
-        Ok((*self, Architecture::from_native()))
+        let arch = get_arch_from_handle(*self);
+        Ok((*self, arch))
     }
 }
 

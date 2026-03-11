@@ -6,8 +6,13 @@ mod windows {
         Foundation::{CloseHandle, HANDLE},
         System::{
             Diagnostics::Debug::{ReadProcessMemory, WriteProcessMemory},
+            SystemInformation::{
+                IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_ARM, IMAGE_FILE_MACHINE_ARM64,
+                IMAGE_FILE_MACHINE_ARMNT, IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_IA64,
+                IMAGE_FILE_MACHINE_THUMB, IMAGE_FILE_MACHINE_UNKNOWN,
+            },
             Threading::{
-                OpenProcess, PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION,
+                IsWow64Process2, OpenProcess, PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION,
                 PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE,
             },
         },
@@ -41,33 +46,71 @@ impl ProcessHandleExt for ProcessHandle {
     }
 }
 
+/// 対象のHANDLEから `IsWow64Process2` を使って正確なArchitectureを取得するヘルパー関数
+fn get_arch_from_handle(handle: windows::HANDLE) -> Architecture {
+    let mut process_machine = windows::IMAGE_FILE_MACHINE_UNKNOWN;
+    let mut native_machine = windows::IMAGE_FILE_MACHINE_UNKNOWN;
+
+    unsafe {
+        if windows::IsWow64Process2(
+            handle,
+            &raw mut process_machine,
+            Some(&raw mut native_machine),
+        )
+        .as_bool()
+        {
+            let machine = if process_machine == windows::IMAGE_FILE_MACHINE_UNKNOWN {
+                native_machine
+            } else {
+                process_machine
+            };
+
+            match machine {
+                // 64-bit Architecture
+                windows::IMAGE_FILE_MACHINE_AMD64
+                | windows::IMAGE_FILE_MACHINE_ARM64
+                | windows::IMAGE_FILE_MACHINE_IA64 => Architecture::Arch64Bit,
+
+                // 32-bit Architecture
+                windows::IMAGE_FILE_MACHINE_I386
+                | windows::IMAGE_FILE_MACHINE_ARM
+                | windows::IMAGE_FILE_MACHINE_ARMNT
+                | windows::IMAGE_FILE_MACHINE_THUMB => Architecture::Arch32Bit,
+
+                _ => Architecture::from_native(),
+            }
+        } else {
+            Architecture::from_native()
+        }
+    }
+}
+
 /// A `Pid` can be turned into a `ProcessHandle` with `OpenProcess`.
 impl TryIntoProcessHandle for Pid {
     fn try_into_process_handle(&self) -> std::io::Result<ProcessHandle> {
-        Ok((
-            unsafe {
-                windows::OpenProcess(
-                    windows::PROCESS_CREATE_THREAD
-                        | windows::PROCESS_QUERY_INFORMATION
-                        | windows::PROCESS_VM_READ
-                        | windows::PROCESS_VM_WRITE
-                        | windows::PROCESS_VM_OPERATION,
-                    false,
-                    *self,
-                )
-            }?,
-            Architecture::from_native(),
-        ))
+        let handle = unsafe {
+            windows::OpenProcess(
+                windows::PROCESS_CREATE_THREAD
+                    | windows::PROCESS_QUERY_INFORMATION
+                    | windows::PROCESS_VM_READ
+                    | windows::PROCESS_VM_WRITE
+                    | windows::PROCESS_VM_OPERATION,
+                false,
+                *self,
+            )
+        }?;
+        let arch = get_arch_from_handle(handle);
+
+        Ok((handle, arch))
     }
 }
 
 /// A `std::process::Child` has a `HANDLE` from calling `CreateProcess`.
 impl TryIntoProcessHandle for Child {
     fn try_into_process_handle(&self) -> std::io::Result<ProcessHandle> {
-        Ok((
-            windows::HANDLE(self.as_raw_handle() as isize),
-            Architecture::from_native(),
-        ))
+        let handle = windows::HANDLE(self.as_raw_handle() as isize);
+        let arch = get_arch_from_handle(handle);
+        Ok((handle, arch))
     }
 }
 
