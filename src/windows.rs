@@ -3,7 +3,7 @@ use std::os::windows::io::AsRawHandle;
 use std::process::Child;
 mod windows {
     pub(crate) use windows::Win32::{
-        Foundation::HANDLE,
+        Foundation::{CloseHandle, HANDLE},
         System::{
             Diagnostics::Debug::{ReadProcessMemory, WriteProcessMemory},
             Threading::{
@@ -30,6 +30,14 @@ impl ProcessHandleExt for ProcessHandle {
     }
     fn set_arch(self, arch: Architecture) -> Self {
         (self.0, arch)
+    }
+    fn close(&self) {
+        if self.0.is_invalid() {
+            return;
+        }
+        unsafe {
+            let _ = windows::CloseHandle(self.0);
+        }
     }
 }
 

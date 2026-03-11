@@ -128,6 +128,8 @@ pub trait ProcessHandleExt {
     /// Set this handle to use some architecture
     #[must_use]
     fn set_arch(self, arch: Architecture) -> Self;
+    /// Closes the process handle.
+    fn close(&self);
 }
 
 /// A trait that refers to and allows writing to a region of memory in a running program.

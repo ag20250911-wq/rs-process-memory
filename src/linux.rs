@@ -18,6 +18,7 @@ impl ProcessHandleExt for ProcessHandle {
     fn set_arch(self, arch: Architecture) -> Self {
         (self.0, arch)
     }
+    fn close(&self) {}
 }
 
 /// A `Child` always has a pid, which is all we need on Linux.

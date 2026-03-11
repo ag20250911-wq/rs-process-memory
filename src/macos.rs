@@ -20,6 +20,14 @@ impl ProcessHandleExt for ProcessHandle {
     fn set_arch(self, arch: Architecture) -> Self {
         (self.0, arch)
     }
+    fn close(&self) {
+        if self.0 == 0 {
+            return;
+        }
+        unsafe {
+            let _ = mach::mach_port::mach_port_deallocate(mach::traps::mach_task_self(), self.0);
+        }
+    }
 }
 
 /// A small wrapper around `task_for_pid`, which taskes a pid returns the mach port representing its task.
