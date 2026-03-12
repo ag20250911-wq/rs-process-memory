@@ -13,7 +13,7 @@ mod architecture;
 mod data_member;
 mod local_member;
 
-pub use architecture::Architecture;
+pub use architecture::{Architecture, Machine};
 pub use data_member::DataMember;
 pub use local_member::LocalMember;
 
@@ -130,6 +130,10 @@ pub trait ProcessHandleExt {
     fn set_arch(self, arch: Architecture) -> Self;
     /// Closes the process handle.
     fn close(&self);
+
+    /// 対象のプロセスが実行されている CPU アーキテクチャ (Machine) を取得します。
+    #[must_use]
+    fn get_machine(&self) -> Machine;
 }
 
 /// A trait that refers to and allows writing to a region of memory in a running program.

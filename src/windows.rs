@@ -19,7 +19,9 @@ mod windows {
     };
 }
 
-use super::{Architecture, CopyAddress, ProcessHandleExt, PutAddress, TryIntoProcessHandle};
+use super::{
+    Architecture, CopyAddress, Machine, ProcessHandleExt, PutAddress, TryIntoProcessHandle,
+};
 
 /// On Windows a `Pid` is a unsigned 32-bit integer.
 pub type Pid = u32;
@@ -42,6 +44,43 @@ impl ProcessHandleExt for ProcessHandle {
         }
         unsafe {
             let _ = windows::CloseHandle(self.0);
+        }
+    }
+
+    fn get_machine(&self) -> Machine {
+        if self.0.is_invalid() {
+            return Machine::Unknown;
+        }
+
+        let mut process_machine = windows::IMAGE_FILE_MACHINE_UNKNOWN;
+        let mut native_machine = windows::IMAGE_FILE_MACHINE_UNKNOWN;
+
+        unsafe {
+            if windows::IsWow64Process2(
+                self.0,
+                &raw mut process_machine,
+                Some(&raw mut native_machine),
+            )
+            .as_bool()
+            {
+                let machine = if process_machine == windows::IMAGE_FILE_MACHINE_UNKNOWN {
+                    native_machine
+                } else {
+                    process_machine
+                };
+
+                match machine {
+                    windows::IMAGE_FILE_MACHINE_I386 => Machine::X86,
+                    windows::IMAGE_FILE_MACHINE_AMD64 => Machine::X64,
+                    windows::IMAGE_FILE_MACHINE_ARM
+                    | windows::IMAGE_FILE_MACHINE_ARMNT
+                    | windows::IMAGE_FILE_MACHINE_THUMB => Machine::Arm32,
+                    windows::IMAGE_FILE_MACHINE_ARM64 => Machine::Arm64,
+                    _ => Machine::Unknown,
+                }
+            } else {
+                Machine::Unknown
+            }
         }
     }
 }

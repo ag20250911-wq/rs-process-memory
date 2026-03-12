@@ -94,3 +94,41 @@ impl Architecture {
         }
     }
 }
+
+/// Enum representing the CPU instruction set architecture of a process
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Machine {
+    /// 32-bit architecture
+    X86,
+    /// 64-bit architecture
+    X64,
+    /// 32-bit ARM architecture
+    Arm32,
+    /// 64-bit ARM architecture
+    Arm64,
+    /// Unknown architecture
+    Unknown,
+}
+
+impl Machine {
+    /// Create a Machine matching that of the host process.
+    #[must_use]
+    pub fn from_native() -> Machine {
+        #[cfg(target_arch = "x86")]
+        return Machine::X86;
+        #[cfg(target_arch = "x86_64")]
+        return Machine::X64;
+        #[cfg(target_arch = "arm")]
+        return Machine::Arm32;
+        #[cfg(target_arch = "aarch64")]
+        return Machine::Arm64;
+        #[cfg(not(any(
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "arm",
+            target_arch = "aarch64"
+        )))]
+        return Machine::Unknown;
+    }
+}

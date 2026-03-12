@@ -4,7 +4,9 @@ use std::process::Child;
 use std::fs::File;
 use std::io::Read;
 
-use super::{Architecture, CopyAddress, ProcessHandleExt, PutAddress, TryIntoProcessHandle};
+use super::{
+    Architecture, CopyAddress, Machine, ProcessHandleExt, PutAddress, TryIntoProcessHandle,
+};
 
 /// On Linux a `Pid` is just a `libc::pid_t`.
 pub type Pid = pid_t;
@@ -22,6 +24,34 @@ impl ProcessHandleExt for ProcessHandle {
         (self.0, arch)
     }
     fn close(&self) {}
+
+    fn get_machine(&self) -> Machine {
+        if self.0 == 0 {
+            return Machine::Unknown;
+        }
+
+        let path = format!("/proc/{}/exe", self.0);
+        if let Ok(mut file) = File::open(&path) {
+            let mut buffer = [0u8; 20];
+            if file.read_exact(&mut buffer).is_ok() && buffer[0..4] == [0x7F, 0x45, 0x4c, 0x46] {
+                let is_le = buffer[5] == 1;
+                let e_machine = if is_le {
+                    u16::from_le_bytes([buffer[18], buffer[19]])
+                } else {
+                    u16::from_be_bytes([buffer[18], buffer[19]])
+                };
+
+                return match e_machine {
+                    0x03 => Machine::X86,
+                    0x3E => Machine::X64,
+                    0x28 => Machine::Arm32,
+                    0xB7 => Machine::Arm64,
+                    _ => Machine::Unknown,
+                };
+            }
+        }
+        Machine::from_native()
+    }
 }
 
 /// `対象のHANDLEからArchitectureを取得するヘルパー関数`
@@ -31,16 +61,13 @@ fn get_arch_from_handle(pid: Pid) -> Architecture {
     // 対象プロセスの実行ファイルを読み取り専用で開く
     if let Ok(mut file) = File::open(&path) {
         let mut buffer = [0u8; 5];
-        // 先頭5バイトだけ読み取る
-        if file.read_exact(&mut buffer).is_ok() {
-            // ELFヘッダのマジックナンバー (0x7F, 'E', 'L', 'F') を確認
-            if buffer[0..4] == [0x7F, 0x45, 0x4c, 0x46] {
-                return match buffer[4] {
-                    1 => Architecture::Arch32Bit,     // ELFCLASS32
-                    2 => Architecture::Arch64Bit,     // ELFCLASS64
-                    _ => Architecture::from_native(), // 未知の場合はフォールバック
-                };
-            }
+        // 先頭5バイトだけ読み取り＆マジックナンバー確認
+        if file.read_exact(&mut buffer).is_ok() && buffer[0..4] == [0x7F, 0x45, 0x4c, 0x46] {
+            return match buffer[4] {
+                1 => Architecture::Arch32Bit,     // ELFCLASS32
+                2 => Architecture::Arch64Bit,     // ELFCLASS64
+                _ => Architecture::from_native(), // 未知の場合はフォールバック
+            };
         }
     }
 

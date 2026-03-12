@@ -3,7 +3,9 @@ use mach::kern_return::KERN_SUCCESS;
 use mach::port::{mach_port_name_t, MACH_PORT_NULL};
 use std::process::Child;
 
-use super::{Architecture, CopyAddress, ProcessHandleExt, PutAddress, TryIntoProcessHandle};
+use super::{
+    Architecture, CopyAddress, Machine, ProcessHandleExt, PutAddress, TryIntoProcessHandle,
+};
 
 /// On OS X a `Pid` is just a `libc::pid_t`.
 pub type Pid = pid_t;
@@ -27,6 +29,13 @@ impl ProcessHandleExt for ProcessHandle {
         unsafe {
             let _ = mach::mach_port::mach_port_deallocate(mach::traps::mach_task_self(), self.0);
         }
+    }
+
+    fn get_machine(&self) -> Machine {
+        if self.0 == 0 {
+            return Machine::Unknown;
+        }
+        Machine::from_native()
     }
 }
 
